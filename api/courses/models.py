@@ -4,6 +4,8 @@ import urllib
 
 # Create your models here.
 
+# Note: each class has get_absolute_url - this is for "url" when queried
+
 class Department(models.Model):
     """A department/subject"""
     code = models.CharField(max_length=5, primary_key=True)
@@ -27,8 +29,7 @@ class Course(models.Model):
        WRIT 039 301 and WRIT 039 303 (they have same course number,
           but different titles)
     """
-    department = models.ForeignKey(Department)
-    coursenum = models.IntegerField()
+    semester = SemesterField() # models.IntegerField() # ID to create a Semester
     coursename = models.CharField(max_length=200)
     credits = models.FloatField()
     description = models.TextField()
@@ -50,12 +51,12 @@ class Professor(models.Model):
     def get_absolute_url(self):
         return "/courses/instructor/%s/" % urllib.quote(self.name) # temporary
 
-class Offering(models.Model):
+class Alias(models.Model):
     """ A section of a course during a particular semester. """
     course = models.ForeignKey(Course)
-    sectionnum = models.IntegerField()
-    semester = SemesterField() # models.IntegerField() # ID to create a Semester
-    professors = models.ManyToManyField(Professor)
+    department = models.ForeignKey(Department)
+    coursenum = models.IntegerField()
+    semester = SemesterField()
 
     def __unicode__(self):
         return "%s-%03d (%s)" % (self.course, self.sectionnum,
@@ -66,7 +67,31 @@ class Offering(models.Model):
                                                      str(self.course.department).lower(),
                                                      self.course.coursenum,
                                                      self.sectionnum)
+
+    class Meta:
+        """ To hold uniqueness constraint """
+        unique_together = (("department", "coursenum", "semester"),)
  
+class Section(models.Model):
+    """ A section of a course during a particular semester. """
+    course     = models.ForeignKey(Course)
+    sectionnum = models.IntegerField()
+    professors = models.ManyToManyField(Professor)
+    group      = models.IntegerField()
+
+    def __unicode__(self):
+        return "%s-%03d (%s)" % (self.course, self.sectionnum,
+                                 self.semester.code())
+
+    def get_absolute_url(self):
+        return "/courses/course/%s/%s/%03d/%03d/" % (self.semester.code(),
+                                                     str(self.course.department).lower(),
+                                                     self.course.coursenum,
+                                                     self.sectionnum)
+    class Meta:
+        """ To hold uniqueness constraint """
+        unique_together = (("course", "sectionnum"),)
+
 class Building(models.Model):
     """ A building at Penn. """
     code = models.CharField(max_length=4)
@@ -96,7 +121,7 @@ class Room(models.Model):
 
 class MeetingTime(models.Model):
     """ A day/time/location that a class meets. """
-    offering = models.ForeignKey(Offering)
+    section = models.ForeignKey(Section)
     type = models.CharField(max_length=3)
     day = models.CharField(max_length=1)
     start = models.IntegerField()
@@ -106,4 +131,4 @@ class MeetingTime(models.Model):
     def __unicode__(self):
         return "%s %s - %s @ %s" % (self.day, self.start, self.end, self.room)
 
-ALLMODELS = [Department, Course, Professor, Offering, Building, Room, MeetingTime]
+ALLMODELS = [Department, Alias, Course, Section, MeetingTime, Professor, Building, Room]
