@@ -30,15 +30,15 @@ class Course(models.Model):
           but different titles)
     """
     semester = SemesterField() # models.IntegerField() # ID to create a Semester
-    coursename = models.CharField(max_length=200)
+    name = models.CharField(max_length=200)
     credits = models.FloatField()
     description = models.TextField()
 
     def __unicode__(self):
-        return "%s %03d" % (self.department, self.coursenum)
+        return "%s %s" % (self.id, self.name)
 
     def get_absolute_url(self):
-        return "/courses/course/current/%s/%03d/" % (str(self.department).lower(), self.coursenum)
+        return "/courses/course/%d" % (self.id,)
         # don't have the actual semester
 
 class Professor(models.Model):
@@ -67,10 +67,6 @@ class Alias(models.Model):
                                                      str(self.course.department).lower(),
                                                      self.course.coursenum,
                                                      self.sectionnum)
-
-    class Meta:
-        """ To hold uniqueness constraint """
-        unique_together = (("department", "coursenum", "semester"),)
  
 class Section(models.Model):
     """ A section of a course during a particular semester. """
@@ -80,8 +76,7 @@ class Section(models.Model):
     group      = models.IntegerField()
 
     def __unicode__(self):
-        return "%s-%03d (%s)" % (self.course, self.sectionnum,
-                                 self.semester.code())
+        return "%s-%03d " % (self.course, self.sectionnum)
 
     def get_absolute_url(self):
         return "/courses/course/%s/%s/%03d/%03d/" % (self.semester.code(),
@@ -107,12 +102,15 @@ class Building(models.Model):
 
 class Room(models.Model):
     """ A room in a building. It optionally may be named. """
-    building = models.ForeignKey(Building, unique = True)
-    roomnum = models.CharField(max_length=5, unique = True)
-    name = models.CharField(max_length=80, unique = True)
+    building = models.ForeignKey(Building)
+    roomnum = models.CharField(max_length=5)
+    name = models.CharField(max_length=80)
     # name is empty string if room doesn't have special name
     # (e.g. Wu and Chen Auditorium), don't bother putting in "LEVH 101"
 
+    class Meta:
+        """ To hold uniqueness constraint """
+        unique_together = (("building", "roomnum"),)
     def __unicode__(self):
         if self.name != "":
             return self.name

@@ -1,27 +1,24 @@
 #!/usr/bin/python
+
+# Imports fail? Try:
+# export DJANGO_SETTINGS_MODULE=api.settings
+# export PYTHONPATH=$(cd ..;pwd)
+
 import re, sys, itertools
-import MySQLdb, sqlite3
 import datetime, time, calendar
+from api import settings, courses
 
-semester = '2010C'
-semesterid = 812
+from api.courses.models import *
 
-db=REDACTED
-
-#db=sqlite3.connect('classes.db')
-
-# matching days up to numbers from DB - no sundays apparently
-days = { 'U': 0, 'M': 1, 'T': 2, 'W': 3, 'R': 4, 'F': 5, 'S': 6 }
-
-
+year   = '2010'
+season = 'c'
 
 def timeinfo_to_times(starttime, endtime, ampm):
+    """ Takes a start and end time, along with am/pm, returns an integer (i.e., 1200 for noon) """
     #first, split each time into list with hours as first element, minutes maybe as second
     startlist = starttime.split(':')
     endlist   = endtime.split(':')
-    
-    
-    
+        
     if ('PM' == ampm):
         endlist[0] = str(int(endlist[0])+12)
         # if it's pm, and start time is before 8, make it a pm.. ex. 1-3PM should be 1PM-3PM
@@ -40,90 +37,149 @@ def timeinfo_to_times(starttime, endtime, ampm):
     
     return (finalstart, finalend)
 
-def getRoom(room):
-    if room == "TBA":
-        room = "TBA 0"
-    if len(room.split(' ')) != 2:
-        print room 
-    (building, roomnum) = room.split(' ')
-    c = db.cursor()
-    c.execute("""SELECT id FROM courses_building WHERE code = %s""", (building,))
-    cid = c.fetchone()
-    buildingid = None
-    if None != cid:
-        buildingid = cid[0]
-    else:
-        c.execute("""INSERT INTO courses_building (code, name) VALUES (%s, %s)""", (building, building))
-        buildingid = db.insert_id()
+def removeFirstLine(string):
+    """ Returns everything after the first newline in a string """
+    pos = string.find('\n') + 1
+    return string[pos:]
 
-    c.execute("""SELECT id FROM courses_room WHERE building_id=%s AND roomnum = %s""", (buildingid, roomnum))
-    rid = c.fetchone()
+def divideGroups(text):
+    """ Divide text about different groups """
+#    print text
+    return re.split('GROUP \d+ SECTIONS\n', text)
+
+def findTimes(text):
+    sectionnum = r"\s+(\d{3})\s+"
+    timeset = r"([A-Z]{3})\s+(\w+)\s+((?:[1-9]|10|11|12)(?:\:\d{2})?)-((?:[1-9]|10|11|12)(?:\:\d{2})?)(AM|PM|NOON)(?:\ +((?:[\w\-]+ [\w\d\-]+|TBA)))?"
+    timerestring = r"^" + sectionnum + timeset + r"(?:, " + timeset +")?" + r"\ *(.*)(?:\s+" + timeset + ")?\n"
+    timeregex = re.compile(timerestring, re.M)
     
-    if None == rid: 
-        c.execute("""INSERT INTO courses_room (building_id, roomnum, name) VALUES (%s, %s, %s)""", (buildingid, roomnum, ""))
-        return db.insert_id()
-    else:
-        return rid[0]
+    # this fixes two-lines class times
+    secondtimerestring = r"^" + sectionnum + r"\ +(.+)(?:\s+" + timeset + r")?" + r"(?:, " + timeset +")?" + r"(?:\s+" + timeset + ")?\n" 
+    secondtimeregex = re.compile(secondtimerestring, re.M)
 
-def addTime(course, start, offeringid, c): 
-    typeabbr = course['time'][start]
+    times1 = timeregex.findall(text)
+    times = [parseTime(x) for x in times1]
 
-    days = course['time'][start+1]
-    times = timeinfo_to_times(course['time'][start+2], course['time'][start+3], course['time'][start+4])
+    times2 = [parseTime(x, True) for x in secondtimeregex.findall(text)]
+    times.extend(times2)
 
-    queries = list()
-    for day in days:
-        queries.append((offeringid, typeabbr, day, times[0], times[1], getRoom(course['time'][start+5])))
+    return times
 
-    c.executemany("""INSERT IGNORE INTO courses_meetingtime (offering_id, type, day, start, end, room_id) VALUES (%s, %s, %s, %s, %s, %s)""", \
-                  queries)
+def parseTime(timeTuple, earlyInstructor=False):
+    """ Converts massive tuple that findTimes regexi return into something
+        moderately useful. earlyInstructor is true if instructor's the
+        second item in the tuple, false if 14th. """
+    x = { 'num'        : timeTuple[0],
+          'instructor' : timeTuple[1] if earlyInstructor else timeTuple[13],
+          'meetings'   : []}
 
-
-def addOffering(course):
-    # create db cursor
-    c=db.cursor()
-
-    # info to add to courses table
-    cname = ' '.join([x.capitalize() for x in course['name'].split(' ')])
-    cdept = course['code'].split('-')[0].strip()
-    cnum  = course['code'].split('-')[1]
-    credits = course['credits']
-
-    # only add if the class isn't already there.. prevents multiple sections from forming their own thing
-    c.execute("""SELECT id FROM courses_course WHERE coursenum = %s AND department_id = %s AND coursename = %s""", \
-                  (cnum, cdept, cname))
-    cid = c.fetchone()
-    if None == cid:
-        c.execute("""INSERT INTO courses_course (department_id, coursenum, coursename, credits) VALUES (%s, %s, %s, %s)""", \
-                  (cdept, cnum, cname, credits))
-        cid = db.insert_id()
-    else:
-        cid = cid[0]
-        
-    # Add offering
-    c.execute("""INSERT INTO courses_offering (course_id, sectionnum, semester) VALUES (%s, %s, %s)""", (cid, course['time'][0], semesterid))
-    offeringid = db.insert_id()
-
-    profs = []
-    # Add professor(s)
-    for prof in course['time'][13].split('/'):
-        c.execute("""INSERT INTO courses_professor (name) VALUES (%s)""", (prof,))
-        profs.append(db.insert_id())
-
-    c.executemany("""INSERT INTO courses_offering_professors (offering_id, professor_id) VALUES (%s, %s)""", \
-                      [(offeringid, prof) for prof in profs])
-
+    # Deal with potentially multiple meeting times
+    timeStart = 2 if earlyInstructor else 1
+    if timeTuple[timeStart] != '':
+        x['meetings'].append(timeTuple[timeStart:timeStart+6])
+    if timeTuple[timeStart+6] != '':
+        x['meetings'].append(timeTuple[timeStart+6:timeStart+12])
+    if timeTuple[14] != '':
+        x['meetings'].append(timeTuple[14:20])
     
-    # first insert the first time
-    addTime(course, 1, offeringid, c)
+    return x
 
-    # add second time if there is one
-    addTime(course, 7, offeringid, c)
+def djangoize(time):
+    print time
+    sem = Semester(year, season)
+    course = Course()
+    course.name     = time['name']
+    print time['name']
+    course.credits  = time['credits']
+    course.semester = sem
+    course.save()
+    saveAlias(time['code'], course)
+    saveSections(time['groups'], course)
+    
+def saveAlias(code, course):
+    """ This will save the alias for a given course, given a code (such as CIS-110 and the course object """
+    sem = Semester(year, season)
+    alias = Alias()
+    alias.course = course
+    (deptString, num) = code.split('-')
+    # Assumes department exists already
+    try:
+        dept = Department.objects.filter(code=deptString.strip())[0]
+    except IndexError:
+        dept = Department()
+        dept.code = deptString.strip()
+        dept.name = deptString.strip()
+        dept.save()
+    alias.department = dept
+    alias.coursenum = num.strip()
+    alias.semester = sem
+    alias.save()
 
-    # add third time if there is one
-    addTime(course, 14, offeringid, c)
- 
-depts = dict();
+def saveSections(groups, course):
+    for groupnum, group in enumerate(groups):
+        for sectInfo in group:
+            section = Section()
+            section.course     = course
+            section.sectionnum = sectInfo['num']
+            section.group = groupnum
+            section.save()
+            for prof in sectInfo['instructor'].split('/'):
+                section.professors.add(saveProfessor(sectInfo['instructor']))
+            section.save()
+
+            for meeting in sectInfo['meetings']:
+                for day in meeting[1]:
+                    time = MeetingTime()
+                    time.section = section
+                    time.type    = meeting[0]
+                    time.day     = day
+                    (start, end) = timeinfo_to_times(meeting[2],
+                                                     meeting[3],
+                                                     meeting[4])
+                    time.start   = start
+                    time.end     = end
+                    time.room    = saveRoom(meeting[5])
+                    time.save()
+
+
+def saveProfessor(name):
+    """ Returns a Professor given a name, creating if necessary """
+    prof = Professor()
+    prof.name = name
+    prof.save()
+    return prof
+
+def saveRoom(roomCode):
+    """ Returns a Room given code, creating room and building if necessary """
+
+    # This is wrong.
+    if "TBA" == roomCode:
+        roomCode = "TBA 0"
+
+    (buildCode, roomNum) = roomCode.split(' ')
+
+    # try finding a building, if nothing, return a new one
+    try:
+        building = Building.objects.filter(code=buildCode)[0]
+    except IndexError:
+        building = Building()
+        building.code = buildCode
+        building.name = ''
+        building.latitude = 0.0
+        building.longitude = 0.0
+        building.save()
+
+    # try finding the room, if nothing return a new one
+    try:
+        room = Room.objects.filter(building=building).filter(roomnum=roomNum)[0]
+    except IndexError:
+        room = Room()
+        room.building = building
+        room.roomnum  = roomNum
+        room.name= ''
+        room.save()
+    return room
+
 for file in sys.argv:
     if 'printcourses.py' == file:
         continue
@@ -139,49 +195,14 @@ for file in sys.argv:
     regex = re.compile(restring, re.M)
     filestr = f.read()
     matches = regex.findall(filestr)
-    # I'm sorry.
-    sectionnum = r"\s+(\d{3})\s+"
-    timeset = r"([A-Z]{3})\s+(\w+)\s+((?:[1-9]|10|11|12)(?:\:\d{2})?)-((?:[1-9]|10|11|12)(?:\:\d{2})?)(AM|PM|NOON)(?:\ +((?:[\w\-]+ [\w\d\-]+|TBA)))?"
-
-    timerestring = r"^" + sectionnum + timeset + r"(?:, " + timeset +")?" + r"\ *(.*)(?:\s+" + timeset + ")?\n"
-
-    timeregex = re.compile(timerestring, re.M)
     
-    classes = itertools.chain.from_iterable([[{'code': x[1], 'name': x[2], 'credits': x[3] if "" != x[3] else x[4] if "" != x[4] else 0, 'time': t} for t in timeregex.findall(x[0])] for x in matches])
+    
+    matches = [{'code'   : x[1], 
+                'name'   : x[2], 
+                'credits': x[3] if "" != x[3] else x[4] if "" != x[4] else 0,
+                'groups' : [findTimes(t) for t in divideGroups(removeFirstLine(x[0]))]
+                } for x in matches]
 
-    #these fix the two-line class times
-    secondtimerestring = r"^" + sectionnum + r"\ +(.+)(?:\s+" + timeset + r")?" + r"(?:, " + timeset +")?" + r"(?:\s+" + timeset + ")?\n" 
-    secondtimeregex = re.compile(secondtimerestring, re.M)
-
-    classes2 = itertools.chain.from_iterable([[{'code': x[1], 'name': x[2], 'time': t, 'credits': x[3] if "" != x[3] else x[4] if "" != x[4] else 0} for t in secondtimeregex.findall(x[0]) if t != None] for x in matches] ) 
-
-
-    numcourses = 0
-    dept = ""
-    for z in classes:
-#        print z
-        dept = z['code'].split('-')[0]
-        addOffering(z)
-        numcourses = numcourses + 1
-
-    for z in classes2:
-        newtimes = []
-        prof = z['time'][1]
-        newtimes.append(z['time'][0])
-        for x in range(2, len(z['time'])+1):
-            if x == 14:
-                newtimes.append(prof)
-            elif x < 14:
-                newtimes.append(z['time'][x])
-            else:
-                newtimes.append(z['time'][x-1])
-        z['time'] = tuple(newtimes)
-        numcourses = numcourses + 1
- #       print z
-        addOffering(z)
-    print file, numcourses
-    c = db.cursor()
-#    dept = "".join([x.capitalize() for x in file.split('.')[0]])
-    c.execute("""INSERT IGNORE INTO courses_department (code, name) VALUES (%s, %s)""", (dept, dept))
- 
+    for x in matches:
+        djangoize(x)
 
