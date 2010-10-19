@@ -85,32 +85,56 @@ def parseTime(timeTuple, earlyInstructor=False):
 
 def djangoize(time):
     sem = Semester(year, season)
+    if False == verifyAlias(time['code'], time['crosslists']):
+        return
     course = Course()
     course.name     = time['name']
     course.credits  = time['credits']
     course.semester = sem
     course.save()
-    saveAlias(time['code'], course)
+    saveAlias(time['code'], time['crosslists'], course)
     saveSections(time['groups'], course)
+    print time
+
+def verifyAlias(code, crosslists):
+    """ True if the given alias doesn't already exist, false otherwise """
+    crosslists.append(code)
+    for x in crosslists:
+        (deptString, num) = x.split('-')
+        try:
+            dept = Department.objects.filter(code=deptString.strip())[0]
+        except IndexError:
+            continue
+        obj = Alias.objects.filter(department=dept, 
+                                   coursenum=num.strip(), 
+                                   semester=Semester(year, season))
+        if len(obj) > 0:
+            print x
+            return False
+    return True
+
     
-def saveAlias(code, course):
+def saveAlias(code, crosslists, course):
     """ This will save the alias for a given course, given a code (such as CIS-110 and the course object """
+
     sem = Semester(year, season)
-    alias = Alias()
-    alias.course = course
-    (deptString, num) = code.split('-')
-    # Assumes department exists already
-    try:
-        dept = Department.objects.filter(code=deptString.strip())[0]
-    except IndexError:
-        dept = Department()
-        dept.code = deptString.strip()
-        dept.name = deptString.strip()
-        dept.save()
-    alias.department = dept
-    alias.coursenum = num.strip()
-    alias.semester = sem
-    alias.save()
+
+    for cross in crosslists:
+        alias = Alias()
+        alias.course = course
+        (deptString, num) = cross.split('-')
+        # Assumes department exists already
+        try:
+            dept = Department.objects.filter(code=deptString.strip())[0]
+        except IndexError:
+            dept = Department()
+            dept.code = deptString.strip()
+            dept.name = deptString.strip()
+            dept.save()
+        alias.department = dept
+        alias.coursenum  = num.strip()
+        alias.semester   = sem
+        alias.save()
 
 def saveSections(groups, course):
     for groupnum, group in enumerate(groups):
