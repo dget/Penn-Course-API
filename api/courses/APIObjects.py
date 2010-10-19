@@ -105,21 +105,18 @@ class APICourse(APIObject):
         self.api_sections = api_sections
         self.initialized = True
 
-    def coursenum_str(self):
-        return "%03d" % self.db_course.coursenum
 
     def api_id(self):
-        return str(self.db_course) # "CIS 120"
+        return str(self.db_course.id) # "CIS 120"
     def api_name(self):
-        return self.db_course.coursename # "Programming Languages and Techniques I"
+        return self.db_course.name # "Programming Languages and Techniques I"
     def api_url(self):
-        return "%s%s/" % (self.api_department.api_url(), self.coursenum_str())
+        return "%s/" % (str(self.db_course.id))
 
     def api_data(self):
         return {"description": self.db_course.description,
                 "credits": self.db_course.credits,
                 "department": self.api_department.encode_refr(),
-                "coursenum": self.coursenum_str(),
                 "sections": [s.encode_refr() for s in self.api_sections] }
 
 # only need parent object

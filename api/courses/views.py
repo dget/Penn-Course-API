@@ -5,8 +5,7 @@ from APIObjects import *
 import json
 
 def JSON(x):
-    return HttpResponse(json.dumps({"result": x, "valid": True, "version": 0.1,
-                                   "lol": "cats", "awesome": 11},
+    return HttpResponse(json.dumps({"result": x, "valid": True, "version": "0.2"},
                                    cls=CourseObjEncoder,
                                    sort_keys=True, indent=3))
 
@@ -46,8 +45,8 @@ def department(request, semester, department):
     #todo figure out magic case-sensitivity + whitespace trimming
     db_department = Department.objects.get(code=department) 
     api_department = APIDepartment(api_semester, db_department)
-    db_courses = Course.objects.filter(department__code=department) #todo filter by semester
-    api_department.add_data([APICourse(api_department, c) for c in db_courses])
+    db_courses = Alias.objects.filter(department__code=department) #todo filter by semester
+    api_department.add_data([APICourse(api_department, c.course) for c in db_courses])
     return JSON(api_department.encode())
 
 def course(request, semester, department, course):

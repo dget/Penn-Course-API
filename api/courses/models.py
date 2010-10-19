@@ -59,14 +59,13 @@ class Alias(models.Model):
     semester = SemesterField()
 
     def __unicode__(self):
-        return "%s-%03d (%s)" % (self.course, self.sectionnum,
+        return "%s: %s-%03d (%s)" % (self.course.id, self.department, self.coursenum,
                                  self.semester.code())
 
     def get_absolute_url(self):
-        return "/courses/course/%s/%s/%03d/%03d/" % (self.semester.code(),
+        return "/courses/course/%s/%s/%03d/" % (self.semester.code(),
                                                      str(self.course.department).lower(),
-                                                     self.course.coursenum,
-                                                     self.sectionnum)
+                                                     self.course.coursenum)
  
 class Section(models.Model):
     """ A section of a course during a particular semester. """
