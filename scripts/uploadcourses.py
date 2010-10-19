@@ -44,7 +44,6 @@ def removeFirstLine(string):
 
 def divideGroups(text):
     """ Divide text about different groups """
-#    print text
     return re.split('GROUP \d+ SECTIONS\n', text)
 
 def findTimes(text):
@@ -85,11 +84,9 @@ def parseTime(timeTuple, earlyInstructor=False):
     return x
 
 def djangoize(time):
-    print time
     sem = Semester(year, season)
     course = Course()
     course.name     = time['name']
-    print time['name']
     course.credits  = time['credits']
     course.semester = sem
     course.save()
@@ -180,6 +177,11 @@ def saveRoom(roomCode):
         room.save()
     return room
 
+def findCrossLists(text):
+    restring = r"(\w{2,5}\s?\s?-\d{3})"
+    regex = re.compile(restring, re.M)
+    return regex.findall(text)
+
 for file in sys.argv:
     if 'printcourses.py' == file:
         continue
@@ -200,7 +202,8 @@ for file in sys.argv:
     matches = [{'code'   : x[1], 
                 'name'   : x[2], 
                 'credits': x[3] if "" != x[3] else x[4] if "" != x[4] else 0,
-                'groups' : [findTimes(t) for t in divideGroups(removeFirstLine(x[0]))]
+                'groups' : [findTimes(t) for t in divideGroups(removeFirstLine(x[0]))],
+                'crosslists': findCrossLists(removeFirstLine(x[0]))
                 } for x in matches]
 
     for x in matches:
