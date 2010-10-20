@@ -97,43 +97,42 @@ class APIDepartment(APIObject):
                 "courses": [c.encode_refr() for c in self.api_courses] }
 
 class APICourse(APIObject):
-    def __init__(self, api_department, db_course):
-        self.api_semester = api_department.api_semester
-        self.api_department = api_department
+    def __init__(self, db_course, api_semester):
+        self.api_semester = api_semester
         self.db_course = db_course
-    def add_data(self, api_sections):
-        self.api_sections = api_sections
+    def add_data(self, api_sections, xapi_aliases):
+        self.api_sections  = api_sections
+        self.xapi_aliases = xapi_aliases
         self.initialized = True
 
 
     def api_id(self):
-        return str(self.db_course.id) # "CIS 120"
+        return str(self.db_course.id) # "3"
     def api_name(self):
         return self.db_course.name # "Programming Languages and Techniques I"
     def api_url(self):
-        return "%s/" % (str(self.db_course.id))
+        return "/course/%s/" % (str(self.db_course.id))
 
     def api_data(self):
-        return {"description": self.db_course.description,
+        return {"aliases": [a.encode() for a in self.xapi_aliases],
+                "description": self.db_course.description,
                 "credits": self.db_course.credits,
-                "department": self.api_department.encode_refr(),
                 "sections": [s.encode_refr() for s in self.api_sections] }
 
 # only need parent object
 
 class APISection(APIObject):
-    def __init__(self, api_course, db_offering):
+    def __init__(self, api_course, db_section):
         self.api_semester = api_course.api_semester
-        self.api_department = api_course.api_department
         self.api_course = api_course
-        self.db_offering = db_offering
+        self.db_section = db_section
     def add_data(self, api_instructors, api_meetingtimes):
         self.api_instructors = api_instructors
         self.api_meetingtimes = api_meetingtimes
         self.initialized = True
 
     def sectionnum_str(self):
-        return "%03d" % self.db_offering.sectionnum
+        return "%03d" % self.db_section.sectionnum
 
     def api_id(self):
         return "%s-%s" % (self.api_course.api_id(), self.sectionnum_str()) # "CIS 120-001"
@@ -146,10 +145,21 @@ class APISection(APIObject):
         return {"course": self.api_course.encode_refr(),
                 "sectionnum": self.sectionnum_str(),
                 "coursenum": self.api_course.coursenum_str(), 
-                "department": self.api_department.encode_refr(),
                 "semester": self.api_semester.encode_refr(),
                 "meetingtimes": [i.encode() for i in self.api_meetingtimes],
                 "instructors": [i.encode_refr() for i in self.api_instructors] }
+
+class XAPIAlias:
+    # NOT an APIObject (yet), but does have an encode() method
+
+    def __init__(self, dept, num):
+        self.dept = dept #string
+        self.num  = num  #integer
+
+
+    def encode(self):
+        return { "code": self.dept + "-" + str(self.num) }
+
 
 def decode_time(time_int):
     return "%02d:%02d" % (time_int / 100, time_int % 100)

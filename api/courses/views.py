@@ -49,21 +49,39 @@ def department(request, semester, department):
     api_department.add_data([APICourse(api_department, c.course) for c in db_courses])
     return JSON(api_department.encode())
 
-def course(request, semester, department, course):
+def alias(request, semester, department, coursenum):
     """ display all data for a course (i.e. a list of sections) """
     db_semester = Semester(semester)
     api_semester = APISemester(db_semester)
     db_department = Department.objects.get(code=department) 
     api_department = APIDepartment(api_semester, db_department)
-    db_offerings = (Offering.objects.filter(course__department__code=department)
-                                    .filter(course__coursenum=course)
+    db_aliases = (Alias.objects.filter(department__code=department)
+                                    .filter(coursenum=coursenum)
                                     .filter(semester=db_semester))
-    db_course = db_offerings[0].course
-    api_course = APICourse(api_department, db_course)
-    api_course.add_data([APISection(api_course, o) for o in db_offerings])
+    return course(request, db_aliases[0].course)
+
+def course(request, course_id):
+    """ display all data for a course (i.e. a list of sections), given either Course or id """
+
+    db_course = Course.objects.filter(id=course_id)[0] if not isinstance(course_id, Course) \
+        else course_id
+
+    
+    db_semester = db_course.semester
+    api_semester = APISemester(db_semester)
+    api_course = APICourse(db_course, api_semester)
+
+    db_sections = Section.objects.filter(course=db_course)
+    api_sections = [APISection(api_course, s) for s in db_sections]
+
+    db_aliases     = Alias.objects.filter(course=db_course)
+    api_aliases   = [XAPIAlias(a.department.code, a.coursenum) for a in db_aliases]
+    api_course.add_data(api_sections, api_aliases)
+
+
     return JSON(api_course.encode())
 
-def section(request, semester, department, course, section):
+def section(request, semester, department, coursenum, section):
     """ display all data for a section """
     db_semester = Semester(semester)
     api_semester = APISemester(db_semester)
