@@ -12,6 +12,7 @@ section_alias_pat = alias_pat + r'(?P<section>[^/]*)/'
 
 # for a course's unique id
 course_pat = root_pat + r'(?P<course_id>\d+)/'
+section_course_pat = course_pat + r'(?P<section>[^/]*)/'
 
 search_pat = r'^courses/search/'
 instructor_pat = r'^courses/instructor/(?P<instructor>[^/]*)/'
@@ -22,6 +23,7 @@ urlpatterns = patterns('',
     (r'^courses/$', 'courses.views.index'),
     (root_pat           + '$', 'courses.views.root'),
     (course_pat         + '$', 'courses.views.course'),
+    (section_course_pat + '$', 'courses.views.section'),
     (semester_pat       + '$', 'courses.views.semester'),
     (department_pat     + '$', 'courses.views.department'),
     (alias_pat          + '$', 'courses.views.alias'),

@@ -144,7 +144,6 @@ class APISection(APIObject):
     def api_data(self):
         return {"course": self.api_course.encode_refr(),
                 "sectionnum": self.sectionnum_str(),
-                "coursenum": self.api_course.coursenum_str(), 
                 "semester": self.api_semester.encode_refr(),
                 "meetingtimes": [i.encode() for i in self.api_meetingtimes],
                 "instructors": [i.encode_refr() for i in self.api_instructors] }

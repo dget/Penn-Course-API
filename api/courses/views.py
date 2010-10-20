@@ -51,14 +51,7 @@ def department(request, semester, department):
 
 def alias(request, semester, department, coursenum):
     """ display all data for a course (i.e. a list of sections) """
-    db_semester = Semester(semester)
-    api_semester = APISemester(db_semester)
-    db_department = Department.objects.get(code=department) 
-    api_department = APIDepartment(api_semester, db_department)
-    db_aliases = (Alias.objects.filter(department__code=department)
-                                    .filter(coursenum=coursenum)
-                                    .filter(semester=db_semester))
-    return course(request, db_aliases[0].course)
+    return course(request, alias_to_course(semester, department, coursenum))
 
 def course(request, course_id):
     """ display all data for a course (i.e. a list of sections), given either Course or id """
@@ -81,21 +74,23 @@ def course(request, course_id):
 
     return JSON(api_course.encode())
 
-def section(request, semester, department, coursenum, section):
+def alias_to_course(semester, department, coursenum):
+    return (Alias.objects.filter(department__code=department)
+                         .filter(coursenum=coursenum)
+                         .filter(semester=semester))[0].course
+
+def section(request, section, semester=None, department=None, coursenum=None, course_id=None):
     """ display all data for a section """
-    db_semester = Semester(semester)
-    api_semester = APISemester(db_semester)
-    db_department = Department.objects.get(code=department) 
-    api_department = APIDepartment(api_semester, db_department)
-    db_offering = (Offering.objects.filter(course__department__code=department)
-                                   .filter(course__coursenum=course)
-                                   .filter(semester=db_semester)
-                                   .get(sectionnum=section))
-    db_course = db_offering.course
-    api_course = APICourse(api_department, db_course)
-    api_section = APISection(api_course, db_offering)
-    db_professors = db_offering.professors.all()
-    db_meetingtimes = MeetingTime.objects.filter(offering=db_offering)
+    db_course = alias_to_course(db_semester, department, coursenum) if course_id==None else Course.objects.get(pk=course_id)
+    api_semester = APISemester(db_course.semester)
+
+    api_course = APICourse(db_course, api_semester)
+
+    db_section = Section.objects.filter(course=db_course).filter(sectionnum=section)[0]
+
+    api_section = APISection(api_course, db_section)
+    db_professors = db_section.professors.all()
+    db_meetingtimes = MeetingTime.objects.filter(section=db_section)
     api_section.add_data(api_instructors=[APIInstructor(p) for p in db_professors],
                          api_meetingtimes=[XAPIMeetingTime(t.start, t.end, t.day,
                                                            APIRoom(t.room))
