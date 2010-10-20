@@ -146,7 +146,8 @@ class APISection(APIObject):
                 "sectionnum": self.sectionnum_str(),
                 "semester": self.api_semester.encode_refr(),
                 "meetingtimes": [i.encode() for i in self.api_meetingtimes],
-                "instructors": [i.encode_refr() for i in self.api_instructors] }
+                "instructors": [i.encode_refr() for i in self.api_instructors],
+                "group": self.db_section.group}
 
 class XAPIAlias:
     # NOT an APIObject (yet), but does have an encode() method
