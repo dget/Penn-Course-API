@@ -77,7 +77,7 @@ def parseTime(timeTuple, earlyInstructor=False):
         earlyInstructor = True
     instructor = ((timeTuple[6] if timetable else timeTuple[1]) 
                   if earlyInstructor else timeTuple[13])
-
+    print timeTuple
     x = { 'num'        : timeTuple[0],
           'instructor' : instructor,
           'meetings'   : []}
@@ -169,7 +169,7 @@ def saveSections(groups, course):
                                                      meeting[4])
                     time.start   = start
                     time.end     = end
-                    time.room    = saveRoom(meeting[5] if len(meeting) > 5 
+                    time.room    = saveRoom(meeting[5] if len(meeting) > 5
                                                        else "TBA")
                     time.save()
 
@@ -185,7 +185,7 @@ def saveRoom(roomCode):
     """ Returns a Room given code, creating room and building if necessary """
 
     # This is wrong.
-    if "TBA" == roomCode:
+    if "TBA" == roomCode or "" == roomCode:
         roomCode = "TBA 0"
 
     (buildCode, roomNum) = roomCode.split(' ')
