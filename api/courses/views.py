@@ -46,7 +46,7 @@ def department(request, semester, department):
     db_department = Department.objects.get(code=department) 
     api_department = APIDepartment(api_semester, db_department)
     db_courses = Alias.objects.filter(department__code=department) #todo filter by semester
-    api_department.add_data([APICourse(api_department, c.course) for c in db_courses])
+    api_department.add_data([APICourse(c.course, api_semester) for c in db_courses])
     return JSON(api_department.encode())
 
 def alias(request, semester, department, coursenum):
