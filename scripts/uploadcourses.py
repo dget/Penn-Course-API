@@ -10,12 +10,14 @@ from api import settings, courses
 
 from api.courses.models import *
 
-year   = '2010'
-season = 'c'
+year   = '2011'
+season = 'a'
+timetable = True # true if there's no rooms yet
 
 def timeinfo_to_times(starttime, endtime, ampm):
     """ Takes a start and end time, along with am/pm, returns an integer (i.e., 1200 for noon) """
     #first, split each time into list with hours as first element, minutes maybe as second
+
     startlist = starttime.split(':')
     endlist   = endtime.split(':')
         
@@ -57,6 +59,7 @@ def findTimes(text):
     secondtimeregex = re.compile(secondtimerestring, re.M)
 
     times1 = timeregex.findall(text)
+    
     times = [parseTime(x) for x in times1]
 
     times2 = [parseTime(x, True) for x in secondtimeregex.findall(text)]
@@ -68,18 +71,26 @@ def parseTime(timeTuple, earlyInstructor=False):
     """ Converts massive tuple that findTimes regexi return into something
         moderately useful. earlyInstructor is true if instructor's the
         second item in the tuple, false if 14th. """
+
+    # early instructor case for timetable
+    if timetable and timeTuple[6] != '':
+        earlyInstructor = True
+    instructor = ((timeTuple[6] if timetable else timeTuple[1]) 
+                  if earlyInstructor else timeTuple[13])
+
     x = { 'num'        : timeTuple[0],
-          'instructor' : timeTuple[1] if earlyInstructor else timeTuple[13],
+          'instructor' : instructor,
           'meetings'   : []}
 
     # Deal with potentially multiple meeting times
-    timeStart = 2 if earlyInstructor else 1
+    timeStart = 2 if earlyInstructor and not timetable else 1
+    length = 5 if timetable == True else 6 # there's no room if a timetable
     if timeTuple[timeStart] != '':
-        x['meetings'].append(timeTuple[timeStart:timeStart+6])
+        x['meetings'].append(timeTuple[timeStart:timeStart+length])
     if timeTuple[timeStart+6] != '':
-        x['meetings'].append(timeTuple[timeStart+6:timeStart+12])
+        x['meetings'].append(timeTuple[timeStart+6:timeStart+6+length])
     if timeTuple[14] != '':
-        x['meetings'].append(timeTuple[14:20])
+        x['meetings'].append(timeTuple[14:])
     
     return x
 
@@ -109,7 +120,6 @@ def verifyAlias(code, crosslists):
                                    coursenum=num.strip(), 
                                    semester=Semester(year, season))
         if len(obj) > 0:
-            print x
             return False
     return True
 
@@ -159,7 +169,8 @@ def saveSections(groups, course):
                                                      meeting[4])
                     time.start   = start
                     time.end     = end
-                    time.room    = saveRoom(meeting[5])
+                    time.room    = saveRoom(meeting[5] if len(meeting) > 5 
+                                                       else "TBA")
                     time.save()
 
 

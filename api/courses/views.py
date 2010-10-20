@@ -45,8 +45,9 @@ def department(request, semester, department):
     #todo figure out magic case-sensitivity + whitespace trimming
     db_department = Department.objects.get(code=department) 
     api_department = APIDepartment(api_semester, db_department)
-    db_courses = Alias.objects.filter(department__code=department) #todo filter by semester
-    api_department.add_data([APICourse(c.course, api_semester) for c in db_courses])
+    db_aliases = Alias.objects.filter(department__code=department) \
+                              .filter(semester=db_semester)
+    api_department.add_data([APICourse(c.course, api_semester) for c in db_aliases])
     return JSON(api_department.encode())
 
 def alias(request, semester, department, coursenum):
@@ -77,11 +78,11 @@ def course(request, course_id):
 def alias_to_course(semester, department, coursenum):
     return (Alias.objects.filter(department__code=department)
                          .filter(coursenum=coursenum)
-                         .filter(semester=semester))[0].course
+                         .filter(semester=Semester(semester)))[0].course
 
 def section(request, section, semester=None, department=None, coursenum=None, course_id=None):
     """ display all data for a section """
-    db_course = alias_to_course(db_semester, department, coursenum) if course_id==None else Course.objects.get(pk=course_id)
+    db_course = alias_to_course(semester, department, coursenum) if course_id==None else Course.objects.get(pk=course_id)
     api_semester = APISemester(db_course.semester)
 
     api_course = APICourse(db_course, api_semester)
