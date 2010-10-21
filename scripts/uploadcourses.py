@@ -213,7 +213,9 @@ def saveRoom(roomCode):
     return room
 
 def findCrossLists(text):
-    restring = r"(\w{2,5}\s?\s?-\d{3})"
+    crosslist_start = r"CROSS LISTED: "
+    crosslist_end   = r"SECTION MAX"
+    restring = crosslist_start + r"(?:(\w{2,5}\s?\s?-\d{3}).*?)" + crosslist_end
     regex = re.compile(restring, re.M)
     return regex.findall(text)
 

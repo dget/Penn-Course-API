@@ -35,7 +35,10 @@ def semester(request, semester):
     """ display all data for a semester (i.e. a list of departments) """
     db_semester = Semester(semester)
     api_semester = APISemester(db_semester)
-    api_semester.add_data([APIDepartment(api_semester, d) for d in Department.objects.all()])
+    departments = [Department(a['department_id']) for a in \
+       Alias.objects \
+            .filter(semester=db_semester).values("department_id").distinct()]
+    api_semester.add_data([APIDepartment(api_semester, d) for d in departments])
     return JSON(api_semester.encode())
 
 def department(request, semester, department):
