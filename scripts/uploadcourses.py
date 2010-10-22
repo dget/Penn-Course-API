@@ -54,7 +54,7 @@ def findTimes(text):
     timerestring = r"^" + sectionnum + timeset + r"(?:, " + timeset +")?" + r"\ *(.*)(?:\s+" + timeset + ")?\n"
     timeregex = re.compile(timerestring, re.M)
     
-    # this fixes two-lines class times
+    # this fixes two-line class times
     secondtimerestring = r"^" + sectionnum + r"\ +(.+)(?:\s+" + timeset + r")?" + r"(?:, " + timeset +")?" + r"(?:\s+" + timeset + ")?\n" 
     secondtimeregex = re.compile(secondtimerestring, re.M)
 
