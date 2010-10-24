@@ -105,9 +105,8 @@ class APICourse(APIObject):
         self.xapi_aliases = xapi_aliases
         self.initialized = True
 
-
     def api_id(self):
-        return str(self.db_course.id) # "3"
+        return str(self.db_course.id) # "12345"
     def api_name(self):
         return self.db_course.name # "Programming Languages and Techniques I"
     def api_url(self):
@@ -135,7 +134,7 @@ class APISection(APIObject):
         return "%03d" % self.db_section.sectionnum
 
     def api_id(self):
-        return "%s-%s" % (self.api_course.api_id(), self.sectionnum_str()) # "CIS 120-001"
+        return "%s-%s" % (self.api_course.api_id(), self.sectionnum_str()) # "12345-001"
     def api_name(self):
         return self.api_course.api_name() # "Programming Languages and Techniques I"
     def api_url(self):
@@ -156,9 +155,11 @@ class XAPIAlias:
         self.dept = dept #string
         self.num  = num  #integer
 
+    def api_id(self):
+        return "%s-%03d" % (self.dept, self.num) # "CIS-120"
 
     def encode(self):
-        return { "code": self.dept + "-" + str(self.num) }
+        return { "code": self.api_id() }
 
 
 def decode_time(time_int):
@@ -242,7 +243,7 @@ class APISearchResults(APIObject):
     def api_url(self): return "/courses/search"
 
     def api_data(self):
-        return {"results": [o.encode_refr() for o in  self.api_offerings], 
+        return {"results": [o.encode_refr() for o in self.api_offerings], 
                 "num_results_total": self.n_results_total,
                 "num_results_shown": len(self.api_offerings), 
                 "start": self. n_results_start}

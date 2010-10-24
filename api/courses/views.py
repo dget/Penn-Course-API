@@ -23,7 +23,7 @@ def index(request):
 
 def root(request):
     """ display the root directory (a list of semesters) """
-    min_sem, max_sem = "2010c", "2010c"
+    min_sem, max_sem = "2010c", "2011a"
     semesters = range(Semester(min_sem).id(), Semester(max_sem).id() + 1)
     db_semesters = [semesterFromID(i) for i in semesters]
     api_semesters = [APISemester(s) for s in db_semesters]
