@@ -54,7 +54,7 @@ def findTimes(text):
     timerestring = r"^" + sectionnum + timeset + r"(?:, " + timeset +")?" + r"\ *(.*)(?:\s+" + timeset + ")?\n"
     timeregex = re.compile(timerestring, re.M)
     
-    # this fixes two-lines class times
+    # this fixes two-line class times
     secondtimerestring = r"^" + sectionnum + r"\ +(.+)(?:\s+" + timeset + r")?" + r"(?:, " + timeset +")?" + r"(?:\s+" + timeset + ")?\n" 
     secondtimeregex = re.compile(secondtimerestring, re.M)
 
@@ -213,7 +213,9 @@ def saveRoom(roomCode):
     return room
 
 def findCrossLists(text):
-    restring = r"(\w{2,5}\s?\s?-\d{3})"
+    crosslist_start = r"CROSS LISTED: "
+    crosslist_end   = r"SECTION MAX"
+    restring = crosslist_start + r"(?:(\w{2,5}\s?\s?-\d{3}).*?)" + crosslist_end
     regex = re.compile(restring, re.M)
     return regex.findall(text)
 
