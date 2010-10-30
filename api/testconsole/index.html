@@ -9,6 +9,10 @@
    background-color: #ffcccc;
    border-color: #cc0000;
 }
+.generic_box {
+   background-color: #dddddd;
+   border-color: #333333;
+}
 .padded {
    padding-left: 10px;
    padding-top: 10px;
@@ -24,49 +28,85 @@ div#addressDisplay {
 }
 </style>
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.0/jquery.min.js"></script> 
+<script type="text/javascript" src="jquery.history.js"></script> <!-- http://tkyk.github.com/jquery-history-plugin -->
 <script type="text/javascript">
+/* the start of the current web address (browsers aren't happy
+with accessing www.pennapps.com from pennapps.com and vice versa) */
+var mydomain = "http://" + (document.domain ? document.domain : "www.pennapps.com") + "/";
+
+//load button callback
 function loadInputJSON() {
-   baseurl = 'http://www.pennapps.com/' + $('#base').val();
-   var page = $('#address').val();
-   return loadJSON(baseurl, page);
+   var baseurl = $('#base').val(); // the base for api addresses
+   var query = $('#address').val(); // the query to the api
+
+   baseurl = baseurl.replace(/\/$/,""); //remove slash at end
+   query = query.replace(/^\//,""); //remove slash at beginning
+   page = baseurl + "/" + query;
+
+   $.history.load(page); //store page to browser history and call loadJSON
+   return false;
 }
 
-function loadJSON(baseurl, page) {
-   baseurl = baseurl.replace(/\/$/,"");
-   page = page.replace(/^\//,"");
-   var addr = baseurl + "/" + page;
+function setOutputBoxType(cssclass) {
+   $('#output').removeClass('error_box success_box generic_box').addClass(cssclass);
+}
+
+//given a url minus the domain (e.g. "api/courses/course"), load it.
+function loadJSON(page) {
+   if (page == "") {
+      //initialize empty page
+      setOutputBoxType('generic_box'); //gray
+      $('#addressDisplay').html("<span>No data loaded.</span>");
+      $('#address').val("courses/course");
+      $('#output').html("<span>Welcome to the Courses API Test console.</span>");
+      return;
+   }
+
+   var addr = mydomain + page; //actual web address
+
+   var baseurl = page.replace(/\/.*$/, ""); //up to first slash
+   var query = page.replace(/^.*?\//,""); //after first slash
+
+   //link to actual api page
    linkobj = $("<div>Source: <a href = '"+addr+"'>"+addr+"</a></div>");
    $('#addressDisplay').html(linkobj);
+   $('#address').val(query);
 
+   //error handler
    $('#output').unbind('ajaxError');
    $('#output').ajaxError(function(e, xhr, set, exc) {
-      $('#output').removeClass('error_box success_box').addClass('error_box');
+      setOutputBoxType('error_box'); //red
       addr = set.url;
       frame = $("<div class='padded'><iframe src = '"+addr+"' width='100%' height='100%'/></div>");
-      $('#output').html(frame);
+      $('#output').html(frame); //set box to an iframe with the actual page
    });
 
+   //success handler
    $.get(addr, function(data) {
-      $('#output').removeClass('error_box success_box').addClass('success_box');
-      data = data.replace(/"url": "(.*?)"/g, function(all, url) {
-         return '"url": "<a href="#" onClick="loadJSON(\''+baseurl+'\',\''+url+'\');">'+url+'</a>"';
+      setOutputBoxType('success_box'); //red
+      //replace addresses in the "url" fields with links
+      data = data.replace(/"url": "(.*?)"/g, function(all, query) {
+         return '"url": "<a href="#" onClick="$.history.load(\''+(baseurl+query)+'\'); return false;">'+query+'</a>"';
       });
       data = "<pre>" + data + "</pre>"
-      $('#output').html(data);
+      $('#output').html(data); //set box to formatted json
    });
-
-  return false;
 }
+
+$(document).ready(function() {
+   $('#domaintext').text(mydomain); //display current domain
+   $.history.init(loadJSON, { unescape: ",/" }); //set up history handler
+});
 </script>
 </head>
 <body>
 <form onSubmit = "return loadInputJSON();">
-http://www.pennapps.com/
+<span id = "domaintext"></span>
 <select id="base">
    <option>api/</option>
    <option selected="true">apiv2/</option>
 </select>
-<input id = "address" size="50" value = "/courses/course/">
+<input id = "address" size="50">
 <input type = "submit" value = "Load">
 </form>
 <div id = "display" class = "padded">
