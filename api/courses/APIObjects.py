@@ -110,7 +110,7 @@ class APICourse(APIObject):
     def api_name(self):
         return self.db_course.name # "Programming Languages and Techniques I"
     def api_url(self):
-        return "/course/%s/" % (str(self.db_course.id))
+        return "/courses/course/%s/" % (str(self.db_course.id))
 
     def api_data(self):
         return {"aliases": [a.encode() for a in self.xapi_aliases],
