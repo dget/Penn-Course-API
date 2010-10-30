@@ -31,6 +31,25 @@ div#addressDisplay {
 <script type="text/javascript" src="jquery.history.js"></script> <!-- http://tkyk.github.com/jquery-history-plugin -->
 <script type="text/javascript">
 
+/*
+To run a local copy of the console off of the temp server:
+1. Change default domain to www.pennapps.com:8000
+2. Add option "/" as a base url and make it default
+*/
+
+function joinURLs(a, b) {
+   if ((a == "") || (b == "")) { return a+b; }
+   var a_end = a[a.length-1] == '/';
+   var b_start = b[0] == '/';
+   if (a_end && b_start) {
+      return a + b.substring(1);
+   } else if (!a_end && !b_start) {
+      return a + '/' + b;
+   } else {
+      return a + b;
+   }
+}
+
 /* the start of the current web address (browsers aren't happy
 with accessing www.pennapps.com from pennapps.com and vice versa) */
 var mydomain = "http://" + (document.domain ? document.domain : "www.pennapps.com") + "/";
@@ -46,9 +65,7 @@ function loadInputJSON() {
       return false;
    }
 
-   baseurl = baseurl.replace(/\/$/,""); //remove slash at end
-   query = query.replace(/^\//,""); //remove slash at beginning
-   page = baseurl + "/" + query;
+   page = joinURLs(baseurl, query);
 
    $.history.load(page); //store page to browser history and call loadJSON
    return false;
@@ -70,7 +87,7 @@ function loadJSON(page) {
       return;
    }
 
-   var addr = mydomain + page; //actual web address
+   var addr = joinURLs(mydomain, page); //actual web address
 
    var baseurl = page.replace(/\/.*$/, ""); //up to first slash
    var query = page.replace(/^.*?\//,""); //after first slash
