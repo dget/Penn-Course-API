@@ -103,9 +103,9 @@ def section(request, section, semester=None, department=None, coursenum=None, co
 
 def search(request):
     d = request.GET
-    db_search = Offering.objects
+    db_search = Section.objects
 
-    # search by semester
+    # TODO: search by semester ?
     # course=cis-120-001 [alternate way oof searching; sem defaults to current?]
     # description
 
@@ -136,15 +136,13 @@ def search(request):
     n_results_total = len(db_search.all())
     db_offerings = db_search.all()[n_results_start:n_results_start + n_results_shown]
 
-    def make_api_section(db_offering):
-        db_course = db_offering.course
-        db_semester = db_offering.semester
-        db_department = db_course.department
+    def make_api_section(db_section):
+        db_course = db_section.course
+        db_semester = db_course.semester
 
         api_semester = APISemester(db_semester)
-        api_department = APIDepartment(api_semester, db_department)
-        api_course = APICourse(api_department, db_course)
-        api_section = APISection(api_course, db_offering)
+        api_course = APICourse(db_course, api_semester)
+        api_section = APISection(api_course, db_section)
         return api_section
     api_sections = [make_api_section(o) for o in db_offerings]
     api_results = APISearchResults(n_results_start,
