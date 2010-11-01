@@ -5,7 +5,7 @@
 # export PYTHONPATH=$(cd ..;pwd)
 
 import re, sys, itertools
-import datetime, time, calendar
+import datetime, time, calendar, pprint
 from api import settings, courses
 
 from api.courses.models import *
@@ -233,16 +233,25 @@ class Parser(object):
         time_regex = r"^ (?:(\d{3}) (.*))"
         time_re = re.compile(time_regex, re.M)
         sections =  list(time_re.finditer(course)) # match objects for each section
+        
         sect_combos = zip(sections, sections[1:]) # match the start of each section up with start of next
-        return [course] if len(sect_combos)==0 else [course[x.start(0):y.start(0)] for x, y in sect_combos]
+
+        return [course] if len(sect_combos)==0 else [course[x.start(0):y.start(0)] for x, y in sect_combos if course[x.start(0):y.start(0)].strip() != ""]
 
     def findInstructor(self, section):
         pattern = r" \d{3} .*?(?:AM|PM|NOON|TBA) (.*)"
         match = re.compile(pattern).search(section)
         if None == match:
-            print section
+            return None
         else:
             return match.group(1).strip()
+
+    def findId(self, section):
+        pattern = r"^ (\d{3})"
+        match = re.compile(pattern).search(section)
+        if None == match:
+            return None
+        return match.group(1).strip()
 
 for file in sys.argv:
     if 'printcourses.py' == file:
@@ -266,16 +275,20 @@ for file in sys.argv:
     matches = [{'code'   : x[1], 
                 'name'   : x[2], 
                 'credits': x[3] if "" != x[3] else x[4] if "" != x[4] else 0,
-                'groups' : [p.findTimes(t) for t in p.divideGroups(p.removeFirstLine(x[0]))],
+                'groups' : p.divideGroups(p.removeFirstLine(x[0])),
                 'crosslists': p.findCrossLists(p.removeFirstLine(x[0])),
                 'remaining' : p.removeFirstLine(x[0])
                 } for x in matches]
 
-    for x in matches:
-        sect = p.findSections(x['remaining'])
-#        print sect
-        instructors = [p.findInstructor(s) for s in sect]
-        times =  [p.findTimes(s)      for s in sect]
+    for match in matches:
+        sectGroups  = [p.findSections(g) for g in match['groups']]
 
-        sections = [{'instructor': x[0], 'times': x[1]} for x in zip(instructors, times)]
-        print sections
+        sections = [[{'instructor': p.findInstructor(s), 
+                      'times':      p.findTimes(s), 
+                      'id':         p.findId(s)} for s in g] for g in sectGroups]
+        match['sections'] = sections
+        del match['remaining']
+        del match['groups']
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(matches)
+
