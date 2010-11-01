@@ -39,7 +39,7 @@ class Importer(object):
     
         return (finalstart, finalend)
 
-    def verifyAlias(code, crosslists):
+    def verifyAlias(self, code, crosslists):
         """ True if the given alias doesn't already exist, false otherwise """
         crosslists.append(code)
         for x in crosslists:
@@ -56,17 +56,24 @@ class Importer(object):
         return True
 
 
-    def djangoize(time):
-        sem = Semester(year, season)
-        if False == verifyAlias(time['code'], time['crosslists']):
-            return
-        course = Course()
-        course.name     = time['name']
-        course.credits  = time['credits']
-        course.semester = sem
-        course.save()
-        saveAlias(time['code'], time['crosslists'], course)
-        saveSections(time['groups'], course)
+    def importDepartment(self, dept):
+        deptname = dept[0]
+        courses = dept[1]
+        for c in courses:
+            self.importCourse(c)
+
+    def importCourse(self, course):
+        print course
+        # sem = Semester(year, season)
+        # if False == verifyAlias(time['code'], time['crosslists']):
+        #     return
+        # course = Course()
+        # course.name     = time['name']
+        # course.credits  = time['credits']
+        # course.semester = sem
+        # course.save()
+        # saveAlias(time['code'], time['crosslists'], course)
+        # saveSections(time['groups'], course)
 
     def saveAlias(code, crosslists, course):
         """ This will save the alias for a given course, given a code (such as CIS-110 and the course object """
@@ -175,55 +182,8 @@ class Parser(object):
         time_regex = re.compile(timeset, re.M)
         return [self.parseTime(x) for x in time_regex.findall(section)]
 
-    def findTimesOld(self, text):
-        sectionnum = r"\s+(\d{3})\s+"
-        timeset = r"([A-Z]{3})\s+(\w+)\s+((?:[1-9]|10|11|12)(?:\:\d{2})?)-((?:[1-9]|10|11|12)(?:\:\d{2})?)(AM|PM|NOON)(?:\ +((?:[\w\-]+ [\w\d\-]+|TBA)))?"
-        timerestring = r"^" + sectionnum + timeset + r"(?:, " + timeset +")?" + r"\ *(.*)(?:\s+" + timeset + ")?\n"
-        timeregex = re.compile(timerestring, re.M)
-        
-        # this fixes two-line class times
-        secondtimerestring = r"^" + sectionnum + r"\ +(.+)(?:\s+" + timeset + r")?" + r"(?:, " + timeset +")?" + r"(?:\s+" + timeset + ")?\n" 
-        secondtimeregex = re.compile(secondtimerestring, re.M)
-        
-        times1 = timeregex.findall(text)
-        
-        times = [self.parseTime(x) for x in times1]
-        
-        times2 = [self.parseTime(x, True) for x in secondtimeregex.findall(text)]
-        times.extend(times2)
-        
-        return times
-
-    def parseTime(self, timeTuple, earlyInstructor=False):
-        """ Converts massive tuple that findTimes regexi return into something
-        moderately useful. earlyInstructor is true if instructor's the
-        second item in the tuple, false if 14th. """
-
-        return timeTuple
-        # early instructor case for timetable
-        if timetable and timeTuple[6] != '':
-            earlyInstructor = True
-        instructor = ((timeTuple[6] if timetable else timeTuple[1]) 
-                      if earlyInstructor else timeTuple[13])
-
-        x = { 'num'        : timeTuple[0],
-              'instructor' : instructor,
-              'meetings'   : []}
-
-        # Deal with potentially multiple meeting times
-        timeStart = 2 if earlyInstructor and not timetable else 1
-        length = 5 if timetable == True else 6 # there's no room if a timetable
-        if timeTuple[timeStart] != '':
-            x['meetings'].append(timeTuple[timeStart:timeStart+length])
-        if timeTuple[timeStart+6] != '':
-            x['meetings'].append(timeTuple[timeStart+6:timeStart+6+length])
-        if timeTuple[14] != '':
-            x['meetings'].append(timeTuple[14:])
-    
-        return x
-
     def findCrossLists(self, text):
-        crosslist_start = r"CROSS LISTED: "
+        crosslist_start = r"(?:CROSS LISTED|CROSS-LISTED): "
         crosslist_end   = r"SECTION MAX"
         restring = crosslist_start + r"(?:(\w{2,5}\s?\s?-\d{3}).*?)" + crosslist_end
         regex = re.compile(restring, re.M)
@@ -253,6 +213,37 @@ class Parser(object):
             return None
         return match.group(1).strip()
 
+    def parseDepartment(self, f):
+        #record subject name to be added later
+        subjname = f.readline().strip()
+
+        # this is line one of a class
+        restring = r"^((\w{2,5}\s?\s?-\d{3})\s+(\w+.*?)\s+(?:(\d) CU|\d TO \d CU|(\d\.\d) CU)\n(.+\n)+?\s*\n)"
+        regex = re.compile(restring, re.M)
+        filestr = f.read()
+        matches = regex.findall(filestr)
+    
+    
+        matches = [{'code'   : x[1], 
+                    'name'   : x[2], 
+                    'credits': x[3] if "" != x[3] else x[4] if "" != x[4] else 0,
+                    'groups' : p.divideGroups(p.removeFirstLine(x[0])),
+                    'crosslists': p.findCrossLists(p.removeFirstLine(x[0])),
+                    'remaining' : p.removeFirstLine(x[0])
+                    } for x in matches]
+
+        for match in matches:
+            sectGroups  = [p.findSections(g) for g in match['groups']]
+
+            sections = [[{'instructor': p.findInstructor(s), 
+                          'times':      p.findTimes(s), 
+                          'id':         p.findId(s)} for s in g] for g in sectGroups]
+            match['sections'] = sections
+            del match['remaining']
+            del match['groups']
+        return (subjname, matches)
+
+
 for file in sys.argv:
     if 'printcourses.py' == file:
         continue
@@ -262,33 +253,11 @@ for file in sys.argv:
 
     p = Parser()
 
-    #record subject name to be added later
-    subjname = f.readline().strip()
-
-    # this is line one of a class
-    restring = r"^((\w{2,5}\s?\s?-\d{3})\s+(\w+.*?)\s+(?:(\d) CU|\d TO \d CU|(\d\.\d) CU)\n(.+\n)+?\s*\n)"
-    regex = re.compile(restring, re.M)
-    filestr = f.read()
-    matches = regex.findall(filestr)
+    x = p.parseDepartment(f)
     
+    i = Importer()
+    i.importDepartment(x)
+
+#    pp = pprint.PrettyPrinter(indent=4)
+#    pp.pprint(x)
     
-    matches = [{'code'   : x[1], 
-                'name'   : x[2], 
-                'credits': x[3] if "" != x[3] else x[4] if "" != x[4] else 0,
-                'groups' : p.divideGroups(p.removeFirstLine(x[0])),
-                'crosslists': p.findCrossLists(p.removeFirstLine(x[0])),
-                'remaining' : p.removeFirstLine(x[0])
-                } for x in matches]
-
-    for match in matches:
-        sectGroups  = [p.findSections(g) for g in match['groups']]
-
-        sections = [[{'instructor': p.findInstructor(s), 
-                      'times':      p.findTimes(s), 
-                      'id':         p.findId(s)} for s in g] for g in sectGroups]
-        match['sections'] = sections
-        del match['remaining']
-        del match['groups']
-    pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(matches)
-
