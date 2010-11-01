@@ -57,11 +57,24 @@ class Importer(object):
         return True
 
 
-    def importDepartment(self, dept, season, year):
+    def importDepartment(self, deptTup, season, year):
         """ Imports all the courses for a given parsed department, and saves dept info """
-        deptname = dept[0]
-        courses = dept[1]
+        deptname = deptTup[0]
+        courses = deptTup[1]
+
+        if len(courses) == 0:
+            return
+        deptcode = courses[0]['code'].strip().split('-')[0].strip()
         sem = Semester(year, season)
+        try:
+            dept = Department.objects.filter(code=deptcode.strip())[0]
+        except IndexError:
+            dept = Department()
+            dept.code = deptcode.strip()
+
+        dept.name = deptname
+        dept.save()
+
         for c in courses:
             self.importCourse(c, sem)
     
@@ -236,10 +249,9 @@ class Parser(object):
         filestr = f.read()
         matches = regex.findall(filestr)
     
-    
         matches = [{'code'   : x[1], 
                     'name'   : x[2], 
-                    'credits': x[3] if "" != x[3] else x[4] if "" != x[4] else 0,
+                    'credits': x[3] if "" != x[3] else x[4] if "" != x[4] else x[5] if "" != x[5] else 0,
                     'groups' : p.divideGroups(p.removeFirstLine(x[0])),
                     'crosslists': p.findCrossLists(p.removeFirstLine(x[0])),
                     'remaining' : p.removeFirstLine(x[0])
@@ -254,6 +266,7 @@ class Parser(object):
             match['sections'] = sections
             del match['remaining']
             del match['groups']
+
         return (subjname, matches)
 
 
@@ -267,7 +280,7 @@ for file in sys.argv:
     p = Parser()
 
     x = p.parseDepartment(f)
-    
+
     i = Importer()
     i.importDepartment(x, season, year)
 
