@@ -11,11 +11,11 @@ def main():
         data = json.loads("".join(open(dir+file).readlines()))
         for course in data:
             if not course: continue
-            f = Course.objects.filter(department__code=dept). \
+            f = Alias.objects.filter(department__code=dept). \
                filter(coursenum=course["num"]).all()
             if len(f)>2: print course["num"], f
             elif len(f) > 0:
-                f[0].description = course["description"]
-                f[0].save()
+                f[0].course.description = course["description"]
+                f[0].course.save()
 
 main()
