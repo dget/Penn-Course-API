@@ -107,8 +107,9 @@ class APICourse(APIObject):
 
     def api_id(self):
         return str(self.db_course.id) # "12345"
+
     def api_name(self):
-        return self.db_course.name # "Programming Languages and Techniques I"
+        return ' '.join([w.capitalize() for w in self.db_course.name.split(' ')]) # "Programming Languages and Techniques I"
     def api_url(self):
         return "/courses/course/%s/" % (str(self.db_course.id))
 

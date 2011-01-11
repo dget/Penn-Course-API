@@ -12,7 +12,7 @@ from api.courses.models import *
 
 year   = '2011'
 season = 'a'
-timetable = True # true if there's no rooms yet
+timetable = False # true if there's no rooms yet
 class Importer(object):
     def timeinfo_to_times(self, starttime, endtime, ampm):
         """ Takes a start and end time, along with am/pm, returns an integer (i.e., 1200 for noon) """
@@ -157,7 +157,7 @@ class Importer(object):
         if "TBA" == roomCode or "" == roomCode:
             roomCode = "TBA 0"
 
-            (buildCode, roomNum) = roomCode.split(' ')
+        (buildCode, roomNum) = roomCode.split(' ')
 
         # try finding a building, if nothing, return a new one
         try:
@@ -224,7 +224,11 @@ class Parser(object):
         return [course] if len(sect_combos)==0 else [course[x.start(0):y.start(0)] for x, y in sect_combos if course[x.start(0):y.start(0)].strip() != ""]
 
     def findInstructor(self, section):
-        pattern = r" \d{3} .*?(?:AM|PM|NOON|TBA) (.*)"
+        room = r"(?:[\w\-]+ [\w\d\-]+|TBA)"
+        if timetable: 
+            pattern = r" \d{3} .*?(?:AM|PM|NOON|TBA) (.*)"
+        else:
+            pattern = r" \d{3} .*?(?:AM|PM|NOON|TBA) " + room + " (.*)"
         match = re.compile(pattern).search(section)
         if None == match:
             return None
@@ -238,7 +242,7 @@ class Parser(object):
             return None
         return match.group(1).strip()
 
-    def parseDepartment(self, f):
+    def parseDepartment(self, f, timetable=True):
         #record subject name to be added later
         subjname = f.readline().strip()
 
@@ -261,7 +265,7 @@ class Parser(object):
             sectGroups  = [p.findSections(g) for g in match['groups']]
 
             sections = [[{'instructor': p.findInstructor(s), 
-                          'times':      p.findTimes(s), 
+                          'times':      p.findTimes(s, timetable), 
                           'num':        p.findId(s)} for s in g if s.strip()!= ""] for g in sectGroups]
             match['sections'] = sections
             del match['remaining']
@@ -279,7 +283,7 @@ for file in sys.argv:
 
     p = Parser()
 
-    x = p.parseDepartment(f)
+    x = p.parseDepartment(f, timetable)
 
     i = Importer()
     i.importDepartment(x, season, year)

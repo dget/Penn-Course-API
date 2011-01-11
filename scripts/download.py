@@ -2,7 +2,7 @@ import urllib2, re, codecs, os
 from xml.dom.minidom import parseString
 
 # timetable or roster depending on time of year
-urlType = "timetable"
+urlType = "roster"
 
 # gives us a correct XML version of the URL 
 response = urllib2.urlopen("http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20html%20where%20url%3D%22http%3A%2F%2Fwww.upenn.edu%2Fregistrar%2F" + urlType + "%2F%22%20and%20xpath%3D%22%2F%2Ftd%5B%40class%3D'body'%5D%2Fa%22&diagnostics=false")
