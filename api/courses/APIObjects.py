@@ -136,7 +136,7 @@ class APISection(APIObject):
     def api_id(self):
         return "%s-%s" % (self.api_course.api_id(), self.sectionnum_str()) # "12345-001"
     def api_name(self):
-        return self.api_course.api_name() # "Programming Languages and Techniques I"
+        return "Num: %s|Group: %s|Course: %s" % (self.sectionnum_str(), self.db_section.group, self.api_course.api_name()) # "Programming Languages and Techniques I"
     def api_url(self):
         return "%s%s/" % (self.api_course.api_url(), self.sectionnum_str())
 
@@ -168,16 +168,18 @@ def decode_time(time_int):
 class XAPIMeetingTime:
     # NOT an APIObject (yet), but does have an encode() method
 
-    def __init__(self, start, end, day, room):
+    def __init__(self, start, end, day, meeting_type, room):
         self.start = start #integer
         self.end = end #integer
         self.day = day #one-char string 
+        self.type = meeting_type
         self.room = room # APIRoom
 
     def encode(self):
         return {"start": decode_time(self.start),
                 "end": decode_time(self.end),
                 "day": self.day,
+                "type": self.type,
                 "room": self.room.encode() }
 
 class APIBuilding(APIObject):

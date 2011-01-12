@@ -35,7 +35,7 @@ def semester(request, semester):
     """ display all data for a semester (i.e. a list of departments) """
     db_semester = Semester(semester)
     api_semester = APISemester(db_semester)
-    departments = [Department(a['department_id']) for a in \
+    departments = [Department.objects.filter(code=a['department_id'])[0] for a in \
        Alias.objects \
             .filter(semester=db_semester).values("department_id").distinct()]
     api_semester.add_data([APIDepartment(api_semester, d) for d in departments])
@@ -96,7 +96,7 @@ def section(request, section, semester=None, department=None, coursenum=None, co
     db_professors = db_section.professors.all()
     db_meetingtimes = MeetingTime.objects.filter(section=db_section)
     api_section.add_data(api_instructors=[APIInstructor(p) for p in db_professors],
-                         api_meetingtimes=[XAPIMeetingTime(t.start, t.end, t.day,
+                         api_meetingtimes=[XAPIMeetingTime(t.start, t.end, t.day, t.type,
                                                            APIRoom(t.room))
                                            for t in db_meetingtimes])
     return JSON(api_section.encode())
