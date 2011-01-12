@@ -87,6 +87,7 @@ class Importer(object):
                 courses = Alias.objects.filter(department=Department(deptCode)).filter(coursenum=coursenum).filter(semester=sem)
                 if len(courses) > 0:
                     new_course =  courses[0].course             
+                    print new_course.id
                     break
             print deptCode, coursenum
 
@@ -98,7 +99,7 @@ class Importer(object):
         new_course.semester = sem
 
         new_course.save()
-        print course
+#        print course
         if True == self.verifyAlias(course['code'], course['crosslists'], sem):
             self.saveAlias(course['crosslists'], new_course)
         self.saveSections(course['sections'], new_course)
@@ -128,12 +129,14 @@ class Importer(object):
 
     def saveSections(self, groups, course):
         Section.objects.filter(course=course).delete()
+ 
         for groupnum, group in enumerate(groups):
             for sectInfo in group:
                 section = Section()
                 section.course     = course
                 section.sectionnum = sectInfo['num']
                 section.group = groupnum
+
                 section.save()
                 if sectInfo['instructor'] != None: 
                     for prof in sectInfo['instructor'].split('/'):
