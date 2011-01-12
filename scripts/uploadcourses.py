@@ -108,6 +108,8 @@ class Importer(object):
 
         sem = Semester(year, season)
         for cross in crosslists:
+            if False == self.verifyAlias(cross, crosslists, sem):
+                return
             alias = Alias()
             alias.course = course
             (deptString, num) = cross.split('-')
@@ -156,6 +158,10 @@ class Importer(object):
 
     def saveProfessor(self, name):
         """ Returns a Professor given a name, creating if necessary """
+        oldprof = Professor.objects.filter(name=name)
+        if len(oldprof) > 0:
+            return oldprof[0]
+
         prof = Professor()
         prof.name = name
         prof.save()
