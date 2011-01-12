@@ -80,23 +80,33 @@ class Importer(object):
     
     def importCourse(self, course, sem):
         """ Imports all info for a given parsed course """
+
         if False == self.verifyAlias(course['code'], course['crosslists'], sem):
-             return
-        new_course = Course()
+            for alias in course['crosslists']:
+                (deptCode, coursenum) = alias.split('-')
+                courses = Alias.objects.filter(department=Department(deptCode)).filter(coursenum=coursenum).filter(semester=sem)
+                if len(courses) > 0:
+                    new_course =  courses[0].course             
+                    break
+            print deptCode, coursenum
+
+        else:
+            new_course = Course()
+
         new_course.name     = course['name']
         new_course.credits  = course['credits']
         new_course.semester = sem
 
         new_course.save()
         print course
-        self.saveAlias(course['crosslists'], new_course)
+        if True == self.verifyAlias(course['code'], course['crosslists'], sem):
+            self.saveAlias(course['crosslists'], new_course)
         self.saveSections(course['sections'], new_course)
 
     def saveAlias(self, crosslists, course):
         """ This will save the alias for a given course, given a code (such as CIS-110 and the course object """
 
         sem = Semester(year, season)
-        
         for cross in crosslists:
             alias = Alias()
             alias.course = course
@@ -115,6 +125,7 @@ class Importer(object):
             alias.save()
 
     def saveSections(self, groups, course):
+        Section.objects.filter(course=course).delete()
         for groupnum, group in enumerate(groups):
             for sectInfo in group:
                 section = Section()
