@@ -2,10 +2,12 @@ from django.http import HttpResponse
 from models import *
 from Semester import *
 from APIObjects import *
+from datetime import datetime
 import json
 
 def JSON(x):
-    return HttpResponse(json.dumps({"result": x, "valid": True, "version": "0.2"},
+    return HttpResponse(json.dumps({"result": x, "valid": True, "version": "0.2",
+                                    "retrieved": str(datetime.now())},
                                    cls=CourseObjEncoder,
                                    sort_keys=True, indent=3))
 
