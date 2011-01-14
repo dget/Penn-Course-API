@@ -25,10 +25,12 @@ class APIObject:
         a reference to the object (including a link where more
         information can be obtained if necessary. This method should
         succeed, even if the object is not fully initialized. """
-
-        return {"id": self.api_id(),
-                "name": self.api_name(),
-                "url": self.api_url()}
+        
+	d = self.api_refr_data()
+	d["id"] = self.api_id()
+	d["name"] = self.api_name()
+	d["url"] = self.api_url()
+	return d
 
     def encode(self):
         """ returns a JSON-serializible object representing the full state of the object.
@@ -44,6 +46,7 @@ class APIObject:
     def api_name(self): raise NotImplementedError()
     def api_url(self):  raise NotImplementedError()
     def api_data(self): raise NotImplementedError()
+    def api_refr_data(self):  return {}
 
 class APIRoot(APIObject):
     def __init__(self): pass
@@ -137,9 +140,13 @@ class APISection(APIObject):
     def api_id(self):
         return "%s-%s" % (self.api_course.api_id(), self.sectionnum_str()) # "12345-001"
     def api_name(self):
-        return "Num: %s|Group: %s|Course: %s" % (self.sectionnum_str(), self.db_section.group, self.api_course.api_name()) # "Programming Languages and Techniques I"
+        return self.api_course.api_name() # "Programming Languages and Techniques I"
     def api_url(self):
         return "%s%s/" % (self.api_course.api_url(), self.sectionnum_str())
+
+    def api_refr_data(self):
+	return {"sectionnum": self.sectionnum_str(),
+	        "group": self.db_section.group}
 
     def api_data(self):
         return {"course": self.api_course.encode_refr(),
