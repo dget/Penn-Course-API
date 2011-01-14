@@ -52,12 +52,19 @@ def department(request, semester, department):
     api_department = APIDepartment(api_semester, db_department)
     db_aliases = Alias.objects.filter(department__code=department) \
                               .filter(semester=db_semester)
-    api_department.add_data([APICourse(c.course, api_semester) for c in db_aliases])
+    
+    api_department.add_data([course_refr(c.course, api_semester) for c in db_aliases])
     return JSON(api_department.encode())
 
 def alias(request, semester, department, coursenum):
     """ display all data for a course (i.e. a list of sections) """
     return course(request, alias_to_course(semester, department, coursenum))
+
+def course_refr(db_course, api_semester):
+    """ Construct a mininmal APICourse. TODO CLEANUP """
+    db_aliases    = Alias.objects.filter(course=db_course)
+    api_aliases   = [XAPIAlias(a.department.code, a.coursenum) for a in db_aliases]
+    return APICourse(db_course, api_semester, api_aliases)
 
 def course(request, course_id):
     """ display all data for a course (i.e. a list of sections), given either Course or id """
@@ -65,18 +72,14 @@ def course(request, course_id):
     db_course = Course.objects.filter(id=course_id)[0] if not isinstance(course_id, Course) \
         else course_id
 
-    
     db_semester = db_course.semester
     api_semester = APISemester(db_semester)
-    api_course = APICourse(db_course, api_semester)
+    api_course = course_refr(db_course, api_semester)
 
     db_sections = Section.objects.filter(course=db_course)
     api_sections = [APISection(api_course, s) for s in db_sections]
 
-    db_aliases     = Alias.objects.filter(course=db_course)
-    api_aliases   = [XAPIAlias(a.department.code, a.coursenum) for a in db_aliases]
-    api_course.add_data(api_sections, api_aliases)
-
+    api_course.add_data(api_sections)
 
     return JSON(api_course.encode())
 
@@ -90,7 +93,7 @@ def section(request, section, semester=None, department=None, coursenum=None, co
     db_course = alias_to_course(semester, department, coursenum) if course_id==None else Course.objects.get(pk=course_id)
     api_semester = APISemester(db_course.semester)
 
-    api_course = APICourse(db_course, api_semester)
+    api_course = course_refr(db_course, api_semester)
 
     db_section = Section.objects.filter(course=db_course).filter(sectionnum=section)[0]
 
@@ -143,7 +146,7 @@ def search(request):
         db_semester = db_course.semester
 
         api_semester = APISemester(db_semester)
-        api_course = APICourse(db_course, api_semester)
+        api_course = course_refr(db_course, api_semester)
         api_section = APISection(api_course, db_section)
         return api_section
     api_sections = [make_api_section(o) for o in db_offerings]

@@ -100,12 +100,12 @@ class APIDepartment(APIObject):
                 "courses": [c.encode_refr() for c in self.api_courses] }
 
 class APICourse(APIObject):
-    def __init__(self, db_course, api_semester):
+    def __init__(self, db_course, api_semester, xapi_aliases):
         self.api_semester = api_semester
         self.db_course = db_course
-    def add_data(self, api_sections, xapi_aliases):
-        self.api_sections  = api_sections
         self.xapi_aliases = xapi_aliases
+    def add_data(self, api_sections):
+        self.api_sections  = api_sections
         self.initialized = True
 
     def api_id(self):
@@ -115,6 +115,10 @@ class APICourse(APIObject):
         return ' '.join([w.capitalize() for w in self.db_course.name.split(' ')]) # "Programming Languages and Techniques I"
     def api_url(self):
         return "/courses/course/%s/" % (str(self.db_course.id))
+
+    def api_refr_data(self):
+        # TODO: sort ordering based on context (e.g. in CIS dept, put CIS aliases first)
+	return {"aliases": sorted(a.api_id() for a in self.xapi_aliases)}
 
     def api_data(self):
         return {"aliases": [a.encode() for a in self.xapi_aliases],
