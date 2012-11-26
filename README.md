@@ -12,7 +12,7 @@ To-do
 * Add semester to individual course view
 * Fix import script when there are more than 3 meeting times (hi Arabic department, why don't you follow a normal format?)
 * Show course-code (i.e., CIS-110) in department page 
-* Fix import script to not tag prerequisites as crosslists
+* Fix import script to not tag prereqs as crosslists
 
 Credits
 -------
