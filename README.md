@@ -14,6 +14,7 @@ To-do
 * Show course-code (i.e., CIS-110) in department page 
 * Fix import script to not tag prerequisites as crosslists
 
+
 Credits
 -------
 This was developed by Matthew Croop, Dan Getelman, and Alexey Komissarouk.
